@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+p#!/usr/bin/env bash
 set -euo pipefail
 
 # Simple logging helpers

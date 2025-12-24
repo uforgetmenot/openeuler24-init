@@ -135,7 +135,7 @@ run_gemini() {
 print_menu() {
 	cat <<EOF
 可用任务：
-  1) 系统基础初始化 (修改 APT/pip 源，安装基础软件、Python、SSH、UFW)
+  1) 系统基础初始化 (修改 DNF/pip 源，安装基础软件、Python、SSH、UFW)
 	2) 安装 Node.js 环境
 	3) 安装 MCP 依赖
 	4) 安装 Docker

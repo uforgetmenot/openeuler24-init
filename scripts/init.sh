@@ -485,55 +485,10 @@ install_gum() {
         return 0
     fi
 
-    # 先尝试从系统仓库安装（若存在）
-    if pkg_install gum >/dev/null 2>&1; then
-        if command_exists gum; then
-            log_success "gum 已通过系统仓库安装"
-            return 0
-        fi
-    fi
-
-    # fallback：下载官方 release 二进制
-    local version="0.16.0"
-    local arch
-    case "$(uname -m)" in
-        x86_64|amd64) arch="x86_64" ;;
-        aarch64|arm64) arch="arm64" ;;
-        *) log_warning "不支持的架构: $(uname -m)，跳过 gum 安装"; return 0 ;;
-    esac
-
-    local url="https://github.com/charmbracelet/gum/releases/download/v${version}/gum_${version}_Linux_${arch}.tar.gz"
-    local tmpdir
-    tmpdir="$(mktemp -d)"
-
-    log_info "下载 gum: ${url}"
-    if command_exists curl; then
-        curl -fL --retry 3 --retry-delay 1 -o "${tmpdir}/gum.tgz" "${url}" || true
-    elif command_exists wget; then
-        wget -qO "${tmpdir}/gum.tgz" "${url}" || true
-    else
-        log_warning "未找到 curl/wget，无法下载 gum"
-        rm -rf "$tmpdir"
-        return 0
-    fi
-
-    if [ ! -s "${tmpdir}/gum.tgz" ]; then
-        log_warning "gum 下载失败，跳过安装"
-        rm -rf "$tmpdir"
-        return 0
-    fi
-
-    tar -xzf "${tmpdir}/gum.tgz" -C "${tmpdir}" || {
-        log_warning "gum 解压失败，跳过安装"
-        rm -rf "$tmpdir"
+    dnf install -y ./assets/tools/gum-0.17.0-1.x86_64.rpm || {
+        log_warning "gum 安装命令执行失败"
         return 0
     }
-
-    if [ -f "${tmpdir}/gum" ]; then
-        install -m 0755 "${tmpdir}/gum" /usr/local/bin/gum || log_warning "gum 安装到 /usr/local/bin 失败"
-    fi
-
-    rm -rf "$tmpdir"
 
     if command_exists gum; then
         log_success "gum 安装成功: $(gum --version 2>/dev/null || echo unknown)"

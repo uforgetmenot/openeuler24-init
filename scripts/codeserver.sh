@@ -82,6 +82,19 @@ configure_service() {
     # 启用并立即启动服务
     # 注意：install.sh 可能会安装 systemd service 文件到 /lib/systemd/system/
     require_sudo
+    cat << EOF | sudo_cmd tee /etc/systemd/system/code-server@.service >/dev/null
+[Unit]
+Description=code-server
+After=network.target
+[Service]
+Type=simple
+User=%i
+Environment=PASSWORD=
+ExecStart=/home/%i/.local/bin/code-server
+Restart=always
+[Install]
+WantedBy=multi-user.target
+EOF
     sudo_cmd systemctl enable --now "code-server@$username"
     
     log_success "code-server 服务已启动并设置为开机自启"
