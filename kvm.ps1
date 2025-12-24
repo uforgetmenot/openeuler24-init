@@ -215,7 +215,6 @@ function Ensure-SshConfigHost {
         return
     }
 
-    $nullDevice = if ($IsWindowsHost) { 'NUL' } else { '/dev/null' }
     $entryLines = @(
         ''
         "Host $HostAlias"
@@ -223,8 +222,10 @@ function Ensure-SshConfigHost {
         "  Port $SshPort"
         "  User $SshUser"
         '  StrictHostKeyChecking no'
-        "  UserKnownHostsFile $nullDevice"
     )
+    if (-not $IsWindowsHost) {
+        $entryLines += '  UserKnownHostsFile /dev/null'
+    }
 
     $entry = ($entryLines -join [Environment]::NewLine) + [Environment]::NewLine
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -403,6 +404,10 @@ switch ($Command) {
         $sshPort = Get-SshPort
         $sshUser = if ($ExtraArgs.Count -ge 1) { $ExtraArgs[0] } else { 'virtualink' }
         $sshExtra = if ($ExtraArgs.Count -gt 1) { $ExtraArgs[1..($ExtraArgs.Count - 1)] } else { @() }
+
+        $sshCopyIdCmd = "ssh-copy-id -p $sshPort $sshUser@localhost"
+        Write-Host "Run to copy your SSH key to the VM: $sshCopyIdCmd"
+
         Write-Host "Connecting to SSH on localhost:$sshPort as $sshUser ..."
         & ssh -p $sshPort "$sshUser@localhost" @sshExtra
         exit $LASTEXITCODE
@@ -422,8 +427,28 @@ switch ($Command) {
 
         Ensure-SshConfigHost -HostAlias $hostAlias -SshPort $sshPort -SshUser $sshUser
 
+        if (-not (Get-Command -Name 'ssh' -ErrorAction SilentlyContinue)) {
+            Write-Err "error: 'ssh' not found in PATH (required to ensure remote directory exists: $remoteDir)"
+            exit 1
+        }
+
+        if ([string]::IsNullOrWhiteSpace($remoteDir)) {
+            Write-Err 'error: remoteDir is empty'
+            exit 1
+        }
+
+        $remoteDirEscaped = $remoteDir -replace "'", "'`"`'`"`'"
+        $remoteMkdirCommand = "mkdir -p -- '$remoteDirEscaped'"
+        $sshArgs = @('-p', $sshPort, '-o', 'StrictHostKeyChecking=no', "$sshUser@$hostAlias", $remoteMkdirCommand)
+        & ssh @sshArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "error: failed to ensure remote directory exists: $remoteDir"
+            exit $LASTEXITCODE
+        }
+
         Write-Host "Opening VS Code Remote-SSH: ${hostAlias}:$remoteDir with user $sshUser in port $sshPort ..."
         $folderUri = "vscode-remote://ssh-remote+${sshUser}@${hostAlias}:${sshPort}${remoteDir}"
+        # Remove-Item -Path ~/.ssh/known_hosts -ErrorAction SilentlyContinue
         & code --folder-uri=$folderUri
         exit $LASTEXITCODE
     }
