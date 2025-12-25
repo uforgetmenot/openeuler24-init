@@ -6,6 +6,7 @@ services:
     devices:
       - /dev/kvm:/dev/kvm
     volumes:
+      - ./start-kvm.sh:/usr/local/bin/start-kvm.sh
       - ./openeuler24.qcow2:/var/lib/libvirt/images/openeuler24.qcow2
     environment:
       LIBVIRT_DEFAULT_URI: qemu:///system
